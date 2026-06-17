@@ -1,15 +1,45 @@
 # mm_trading — Kantitatif Strateji Araştırması
 
-Bu repo, sistematik bir ABD hisse/ETF/opsiyon işlem stratejisinin (TSMR-CX)
-tasarım memorandumunu ve bir **karşılaştırmalı backtest iskeletini** içerir.
+Bu repo iki ayrı kantitatif çerçeve içerir:
+
+1. **TSMR-CX** — sistematik ABD hisse/ETF/opsiyon stratejisinin tasarım
+   memorandumu + karşılaştırmalı backtest iskeleti.
+2. **XMM-CX** — kripto (MEXC, 500 USDT) **piyasa yapıcılığı (market making)**
+   sistem spesifikasyonu + çalışan referans kotasyon motoru ve simülatör.
 
 ## İçerik
 
 | Dosya | Açıklama |
 |---|---|
 | `STRATEGY_MEMORANDUM.md` | Goldman tarzı tam strateji memorandumu (tez, evren, sinyal, giriş/çıkış, boyutlandırma, risk, backtest, benchmark, edge-decay, 100x matematiği) |
+| `MARKET_MAKING_SPEC.md` | **Jane Street tarzı piyasa yapıcılığı spesifikasyonu** (spread modeli, envanter yönetimi, kotasyon skew, ters-seçim tespiti, hedge, mikro yapı, PnL ayrıştırması, risk limitleri, metrikler) — MEXC kripto, 500 USDT |
+| `mm/` | **Çalışan MM referans motoru** — Avellaneda-Stoikov kotasyon + ters-seçim kapısı + risk/kill-switch + PnL ayrıştırması + tick-seviyesi simülatör |
 | `backtest/` | Çalışan backtest çerçevesi — guru-klon vs. çekirdek kantit vs. benchmark |
 | `requirements.txt` | Python bağımlılıkları |
+
+## Piyasa Yapıcılığı (XMM-CX) — MEXC, 500 USDT
+
+Tam tasarım için `MARKET_MAKING_SPEC.md`. Çalışan iskelet `mm/` altında ve
+**yalnızca standart kütüphane** ile çalışır (numpy gerekmez):
+
+```bash
+python -m mm.run_sim                 # üç rejimi karşılaştır
+python -m mm.run_sim --steps 50000 --fee 0.0005   # pozitif komisyon senaryosu
+```
+
+Simülatör üç rejimi gösterir ve metodolojiyi doğrular:
+
+| Rejim | Senaryo | Tipik sonuç |
+|---|---|---|
+| **A** | Düşük toksisite | Spread yakalama domine eder → **net pozitif** |
+| **B** | Yüksek toksisite | Brüt spread sağlıklı ama **envanter/yönlü maliyet** net'i negatife çeker (ters seçim) |
+| **C** | Sürekli tek-yönlü toksik patlama | **Ters-seçim kapısı (WIDEN)** devreye girer, fill çöker, zarar sınırlanır |
+
+**Sentetik veri uyarısı:** Bilgili (informed) akış simülatöre *tasarımla*
+gömülüdür; sonuçlar yalnızca motorun ve risk mantığının doğru çalıştığını
+gösterir, canlı kârı **kanıtlamaz**. Gerçek hüküm için MEXC tarihsel L2/trade
+replay'i gerekir. **MEXC %0 spot maker komisyonu koda gömülmez** — fiili
+komisyon her döngüde API'den okunmalıdır (`--fee` ile pozitif senaryo test edin).
 
 ## Backtest: "Guru-klon botu mu, kendi stratejimiz mi?"
 
